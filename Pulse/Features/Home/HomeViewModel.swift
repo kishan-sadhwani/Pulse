@@ -16,7 +16,7 @@ public final class HomeViewModel: ObservableObject {
         PulseLogger.shared.warning("REPORTING WARNING")
         PulseLogger.shared.fault("REPORTING FAULT")
         
-        logger.error("REPORTING ERROR")
+        logger.error("REPORTING ERROR", error: URLError(.badServerResponse))
         
         logger.info("REPORTING INFO", metadata: [
             "url": "https://www.google.com",

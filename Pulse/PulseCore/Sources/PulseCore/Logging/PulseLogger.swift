@@ -13,50 +13,40 @@ public struct PulseLogger: Sendable {
         return PulseLogger(category: category)
     }
 
-    public func debug(_ message: String) {
-        log(level: .debug, message: message)
-    }
-
-    public func debug(_ message: String, metadata: [String: String]) {
+    public func debug(_ message: String, metadata: [String: String]? = nil) {
         log(level: .debug, message: message, metadata: metadata)
     }
 
-    public func info(_ message: String) {
-        log(level: .info, message: message)
-    }
-
-    public func info(_ message: String, metadata: [String: String]) {
+    public func info(_ message: String, metadata: [String: String]? = nil) {
         log(level: .info, message: message, metadata: metadata)
     }
 
-    public func warning(_ message: String) {
-        log(level: .warning, message: message)
-    }
-
-    public func warning(_ message: String, metadata: [String: String]) {
+    public func warning(_ message: String, metadata: [String: String]? = nil) {
         log(level: .warning, message: message, metadata: metadata)
     }
 
-    public func error(_ message: String) {
-        log(level: .error, message: message)
+    public func error(_ message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
+        log(level: .error, message: message, metadata: metadata, error: error, file: file, line: line)
     }
 
-    public func error(_ message: String, metadata: [String: String]) {
-        log(level: .error, message: message, metadata: metadata)
-    }
-
-    public func fault(_ message: String) {
-        log(level: .fault, message: message)
-    }
-
-    public func fault(_ message: String, metadata: [String: String]) {
-        log(level: .fault, message: message, metadata: metadata)
+    public func fault(_ message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
+        log(level: .fault, message: message, metadata: metadata, error: error, file: file, line: line)
     }
     
-    internal func log(level: LogLevel, message: String, metadata: [String: String]? = nil) {
+    internal func log(level: LogLevel, message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String? = nil, line: UInt? = nil) {
         // Output format: [LEVEL] [Category] Message {metadata}
         let prefix = "[\(level.rawValue.uppercased())]"
         var output = "[\(category.name)] \(prefix) \(message)"
+        
+        if let file = file, let line = line {
+            let filename = (file as NSString).lastPathComponent
+            output += " [\(filename):\(line)]"
+        }
+        
+        if let error = error {
+            output += " | Error: \(error)"
+        }
+        
         defer {
             print(output)
         }
