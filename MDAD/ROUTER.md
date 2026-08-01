@@ -5,7 +5,8 @@ entrypoint: true
 default_load:
   - ${workspaceFolder}/MDAD/Vision.md
   - ${workspaceFolder}/MDAD/Principles.md
-children: []
+children: 
+  - ${workspaceFolder}/Pulse/PulseCore/MDAD
 routes:
   architecture:
     - ${workspaceFolder}/MDAD/Architecture/SystemOverview.md

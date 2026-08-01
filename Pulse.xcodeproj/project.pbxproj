@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DAED8143301E04A1001E7C6F /* PulseCore in Frameworks */ = {isa = PBXBuildFile; productRef = DAED8142301E04A1001E7C6F /* PulseCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		DA972152301D3A6000024368 /* Pulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DAED8143301E04A1001E7C6F /* PulseCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = Pulse;
 			packageProductDependencies = (
+				DAED8142301E04A1001E7C6F /* PulseCore */,
 			);
 			productName = Pulse;
 			productReference = DA972152301D3A6000024368 /* Pulse.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = DA972149301D3A6000024368;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DAED8141301E04A1001E7C6F /* XCLocalSwiftPackageReference "Pulse/PulseCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DA972153301D3A6000024368 /* Products */;
 			projectDirPath = "";
@@ -347,6 +356,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		DAED8141301E04A1001E7C6F /* XCLocalSwiftPackageReference "Pulse/PulseCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Pulse/PulseCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DAED8142301E04A1001E7C6F /* PulseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PulseCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = DA97214A301D3A6000024368 /* Project object */;
 }

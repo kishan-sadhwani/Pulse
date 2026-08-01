@@ -11,7 +11,7 @@ public struct HomeView: View {
         VStack(spacing: 16) {
             Text("ᑭ")
                 .font(.system(size: 60))
-                .foregroundColor(.accentColor)
+                .foregroundColor(.primary)
             
             Text(viewModel.title)
                 .font(.title)
