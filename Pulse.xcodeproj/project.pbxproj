@@ -10,9 +10,22 @@
 		DA972152301D3A6000024368 /* Pulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DAED8118301DEBAE001E7C6F /* Exceptions for "Pulse" folder in "Pulse" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PulseCore,
+			);
+			target = DA972151301D3A6000024368 /* Pulse */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DA972154301D3A6000024368 /* Pulse */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DAED8118301DEBAE001E7C6F /* Exceptions for "Pulse" folder in "Pulse" target */,
+			);
 			path = Pulse;
 			sourceTree = "<group>";
 		};

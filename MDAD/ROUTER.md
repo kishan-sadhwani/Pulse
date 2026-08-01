@@ -9,7 +9,7 @@ children: []
 routes:
   architecture:
     - ${workspaceFolder}/MDAD/Architecture/SystemOverview.md
-    - ${workspaceFolder}/MDAD/Architecture/ApplicationArchitecture.md
+    - ${workspaceFolder}/MDAD/Architecture/DomainArchitecture.md
 ---
 
 # MDAD Routing Manifest
@@ -30,7 +30,7 @@ The MDAD routing manifest is the single, deterministic entry point for humans an
 | `Vision.md` | Why Pulse and MDAD exist; high‑level inspiration. | Provides the overarching motivation and philosophical backdrop. |
 | `Principles.md` | Core timeless engineering principles. | Defines the decision‑making framework that guides all downstream work. |
 | `Architecture/SystemOverview.md` | High‑level system architecture. | Describes the major components and their interactions without implementation details. |
-| `Architecture/ApplicationArchitecture.md` | Application architecture. | Describes the application architecture. |
+| `Architecture/DomainArchitecture.md` | Domain architecture. | Describes the domain architecture. |
 
 *Only files that currently exist are listed. New documents should be added here when created.*
 
