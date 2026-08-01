@@ -17,7 +17,11 @@ public final class HomeViewModel: ObservableObject {
         PulseLogger.shared.fault("REPORTING FAULT")
         
         logger.error("REPORTING ERROR")
-        logger.info("REPORTING INFO")
+        
+        logger.info("REPORTING INFO", metadata: [
+            "url": "https://www.google.com",
+            "method": "GET"
+        ])
         
     }
 }

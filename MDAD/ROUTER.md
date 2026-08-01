@@ -1,13 +1,18 @@
 ---
 schema: mdad/v1
+
 scope: project
+
 entrypoint: true
+
 default_load:
   - ${workspaceFolder}/MDAD/Vision.md
   - ${workspaceFolder}/MDAD/Principles.md
+
 children: 
-  - ${workspaceFolder}/Pulse/PulseCore/MDAD
-routes:
+  - ${workspaceFolder}/Pulse/PulseCore/
+
+knowledge:
   architecture:
     - ${workspaceFolder}/MDAD/Architecture/SystemOverview.md
     - ${workspaceFolder}/MDAD/Architecture/DomainArchitecture.md
