@@ -1,0 +1,40 @@
+# M5 - Privacy Controls
+
+## Status
+
+Planned
+
+## Goal
+
+Introduce privacy-aware logging to safely handle sensitive information.
+
+## Scope
+
+- Introduce public/private value representation.
+- Support automatic redaction.
+- Preserve existing logging APIs.
+- Keep privacy handling consistent across all log levels.
+
+## Out of Scope
+
+- Logger configuration.
+- Multiple providers.
+- Remote logging.
+
+## Notes
+
+Privacy should be explicit and easy to adopt without making normal logging cumbersome.
+
+Typical usage should evolve towards:
+
+```swift
+PulseLogger.info(
+    "User signed in",
+    metadata: [
+        "email": .private(email),
+        "userId": .public(id)
+    ]
+)
+```
+
+Update the status on top of this file to "Done" and record important architectural decisions once implementation completes.

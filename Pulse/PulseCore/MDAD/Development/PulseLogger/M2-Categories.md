@@ -2,7 +2,7 @@
 
 ## Status
 
-**IMPLEMENTATION COMPLETED, DO NOT IMPLEMENT AGAIN**
+Done
 
 ## Goal
 
