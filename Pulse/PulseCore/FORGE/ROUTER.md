@@ -1,24 +1,24 @@
 ---
-schema: mdad/v1
+schema: forge/v1
 
 scope: package
 
 entrypoint: false
 
 default_load:
-  - ${workspaceFolder}/Pulse/PulseCore/MDAD/Vision.md
-  - ${workspaceFolder}/Pulse/PulseCore/MDAD/Principles.md
+  - ${workspaceFolder}/Pulse/PulseCore/FORGE/Vision.md
+  - ${workspaceFolder}/Pulse/PulseCore/FORGE/Principles.md
 
 knowledge:
   architecture:
-    - ${workspaceFolder}/Pulse/PulseCore/MDAD/Architecture/SystemOverview.md
-    - ${workspaceFolder}/Pulse/PulseCore/MDAD/Architecture/DomainArchitecture.md
+    - ${workspaceFolder}/Pulse/PulseCore/FORGE/Architecture/SystemOverview.md
+    - ${workspaceFolder}/Pulse/PulseCore/FORGE/Architecture/DomainArchitecture.md
 
   features:
     PulseLogger:
-      milestones: ${workspaceFolder}/Pulse/PulseCore/MDAD/Development/PulseLogger/
+      milestones: ${workspaceFolder}/Pulse/PulseCore/FORGE/Development/PulseLogger/
 ---
-# MDAD Routing Manifest
+# FORGE Routing Manifest
 
 ## Purpose
 

@@ -1,27 +1,27 @@
 ---
-schema: mdad/v1
+schema: forge/v1
 
 scope: project
 
 entrypoint: true
 
 default_load:
-  - ${workspaceFolder}/MDAD/Vision.md
-  - ${workspaceFolder}/MDAD/Principles.md
+  - ${workspaceFolder}/FORGE/Vision.md
+  - ${workspaceFolder}/FORGE/Principles.md
 
 children: 
   - ${workspaceFolder}/Pulse/PulseCore/
 
 knowledge:
   architecture:
-    - ${workspaceFolder}/MDAD/Architecture/SystemOverview.md
-    - ${workspaceFolder}/MDAD/Architecture/DomainArchitecture.md
+    - ${workspaceFolder}/FORGE/Architecture/SystemOverview.md
+    - ${workspaceFolder}/FORGE/Architecture/DomainArchitecture.md
 ---
 
-# MDAD Routing Manifest
+# FORGE Routing Manifest
 
 ## Purpose
-The MDAD routing manifest is the single, deterministic entry point for humans and AI agents to discover and load the minimal required MDAD context for any boundary (project, package, feature, or task).
+The FORGE routing manifest is the single, deterministic entry point for humans and AI agents to discover and load the minimal required FORGE context for any boundary (project, package, feature, or task).
 
 ## Context Hierarchy
 - **Project → Package → Feature → Task** – Knowledge is organized from the broadest scope (the whole project) down to the smallest work unit. Each level inherits the context of its parent.
@@ -33,7 +33,7 @@ The MDAD routing manifest is the single, deterministic entry point for humans an
 ## Document Map & Roles
 | Document | Scope | Responsibility |
 |---|---|---|
-| `Vision.md` | Why Pulse and MDAD exist; high‑level inspiration. | Provides the overarching motivation and philosophical backdrop. |
+| `Vision.md` | Why Pulse and FORGE exist; high‑level inspiration. | Provides the overarching motivation and philosophical backdrop. |
 | `Principles.md` | Core timeless engineering principles. | Defines the decision‑making framework that guides all downstream work. |
 | `Architecture/SystemOverview.md` | High‑level system architecture. | Describes the major components and their interactions without implementation details. |
 | `Architecture/DomainArchitecture.md` | Domain architecture. | Describes the domain architecture. |
@@ -44,12 +44,12 @@ The MDAD routing manifest is the single, deterministic entry point for humans an
 - Each document owns its defined scope; content that belongs elsewhere should be referenced, not duplicated.
 - Updates must stay within the document’s responsibility area to prevent overlap.
 
-## When to Create a New MDAD Document
+## When to Create a New FORGE Document
 - Create a new file when a concept cannot be expressed within an existing document’s scope **and** it represents a reusable knowledge unit (e.g., a new architectural pattern, a tooling guideline, or a domain‑specific rule).
 - Otherwise, extend the appropriate existing document.
 
 ## Future Package‑Level Routers
-- Packages may contain their own `MDAD/ROUTER.md` (e.g., `Packages/PulseCore/MDAD/ROUTER.md`).
+- Packages may contain their own `FORGE/ROUTER.md` (e.g., `Packages/PulseCore/FORGE/ROUTER.md`).
 - The root router remains the first stop; it points to package routers for deeper, package‑specific context.
 - AI navigation: start at the root router, then follow the package router to locate feature‑ or task‑level documents, loading only what is needed at each step.
 

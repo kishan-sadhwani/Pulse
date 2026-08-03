@@ -8,10 +8,10 @@ At the same time, true production-grade software requires more than raw code—i
 ## Pulse
 I am building Pulse to be a living, modular engineering ecosystem. More than just a personal app, it is my reference implementation for building production-grade software. It serves as a blueprint for scalable architecture, proving that ambitious applications can be built systematically alongside AI without sacrificing quality, maintainability, or design.
 
-## Milestone-Driven AI Development (MDAD)
-MDAD is a powerful approach to solving the AI context problem. By organizing engineering knowledge hierarchically, it ensures that AI operates only on the precise, minimal context required for any given task. 
+## Framework for Organized Rapid Generative Engineering (FORGE)
+FORGE is a powerful approach to solving the AI context problem. By organizing engineering knowledge hierarchically, it ensures that AI operates only on the precise, minimal context required for any given task. 
 
-Rather than relying on rigid, upfront theorization, I am adapting and evolving this methodology organically through my own engineering experience. Pulse is the proving ground where I put MDAD into practice and refine it for real-world use.
+Rather than relying on rigid, upfront theorization, I am adapting and evolving this methodology organically through my own engineering experience. Pulse is the proving ground where I put FORGE into practice and refine it for real-world use.
 
 ## Philosophy
 - **Context is the Constraint:** AI thrives on relevance, not volume. Constraining context unlocks precision.
