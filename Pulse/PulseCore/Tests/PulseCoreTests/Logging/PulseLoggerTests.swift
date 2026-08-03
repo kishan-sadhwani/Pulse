@@ -11,7 +11,7 @@ final class PulseLoggerTests: XCTestCase {
     }
 
     func testLoggerAPIDoesNotCrash() {
-        let logger = PulseLogger()
+        let logger = PulseLogger.shared
         logger.debug("Test debug message")
         logger.info("Test info message")
         logger.warning("Test warning message")
@@ -35,5 +35,26 @@ final class PulseLoggerTests: XCTestCase {
         let customLogger = PulseLogger.category("Custom")
         XCTAssertEqual(customLogger.category.name, "Custom")
         customLogger.warning("Custom category test")
+    }
+
+    func testPrivacyControls() {
+        let publicVal: LogMetadataValue = "test"
+        XCTAssertEqual(publicVal, .public("test"))
+        XCTAssertEqual(publicVal.value, "test")
+        XCTAssertEqual(publicVal.rendered(redacted: false), "test")
+        XCTAssertEqual(publicVal.rendered(redacted: true), "test")
+        
+        let privateVal = LogMetadataValue.private("secret")
+        XCTAssertEqual(privateVal.value, "secret")
+        XCTAssertEqual(privateVal.rendered(redacted: false), "secret")
+        XCTAssertEqual(privateVal.rendered(redacted: true), "***")
+    }
+    
+    func testLoggerWithMetadata() {
+        let logger = PulseLogger.shared
+        logger.info("Test metadata", metadata: [
+            "public_key": "public_value", // uses ExpressibleByStringLiteral
+            "private_key": .private("secret_value")
+        ] as [String: LogMetadataValue])
     }
 }

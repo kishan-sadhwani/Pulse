@@ -22,6 +22,10 @@ public final class HomeViewModel: ObservableObject {
             "url": "https://www.google.com",
             "method": "GET"
         ])
+        logger.info("REPORTING INFO", metadata: [
+            "url": .private("https://www.google.com"),
+            "method": .public("GET")
+        ])
         
     }
 }

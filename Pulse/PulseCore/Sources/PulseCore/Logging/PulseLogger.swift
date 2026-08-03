@@ -13,27 +13,27 @@ public struct PulseLogger: Sendable {
         return PulseLogger(category: category)
     }
 
-    public func debug(_ message: String, metadata: [String: String]? = nil) {
+    public func debug(_ message: String, metadata: [String: LogMetadataValue]? = nil) {
         log(level: .debug, message: message, metadata: metadata)
     }
 
-    public func info(_ message: String, metadata: [String: String]? = nil) {
+    public func info(_ message: String, metadata: [String: LogMetadataValue]? = nil) {
         log(level: .info, message: message, metadata: metadata)
     }
 
-    public func warning(_ message: String, metadata: [String: String]? = nil) {
+    public func warning(_ message: String, metadata: [String: LogMetadataValue]? = nil) {
         log(level: .warning, message: message, metadata: metadata)
     }
 
-    public func error(_ message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
+    public func error(_ message: String, metadata: [String: LogMetadataValue]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
         log(level: .error, message: message, metadata: metadata, error: error, file: file, line: line)
     }
 
-    public func fault(_ message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
+    public func fault(_ message: String, metadata: [String: LogMetadataValue]? = nil, error: Swift.Error? = nil, file: String = #file, line: UInt = #line) {
         log(level: .fault, message: message, metadata: metadata, error: error, file: file, line: line)
     }
     
-    internal func log(level: LogLevel, message: String, metadata: [String: String]? = nil, error: Swift.Error? = nil, file: String? = nil, line: UInt? = nil) {
+    internal func log(level: LogLevel, message: String, metadata: [String: LogMetadataValue]? = nil, error: Swift.Error? = nil, file: String? = nil, line: UInt? = nil) {
         // Output format: [LEVEL] [Category] Message {metadata}
         let prefix = "[\(level.rawValue.uppercased())]"
         var output = "[\(category.name)] \(prefix) \(message)"
@@ -52,7 +52,14 @@ public struct PulseLogger: Sendable {
         }
         
         if let metadata = metadata, !metadata.isEmpty {
-            guard let data = try? JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted]),
+            #if DEBUG
+            let isRedacted = false
+            #else
+            let isRedacted = true
+            #endif
+            
+            let rawMetadata = metadata.mapValues { $0.rendered(redacted: isRedacted) }
+            guard let data = try? JSONSerialization.data(withJSONObject: rawMetadata, options: [.prettyPrinted, .sortedKeys]),
                   let metaString = String(data: data, encoding: .utf8)
             else {
                 return

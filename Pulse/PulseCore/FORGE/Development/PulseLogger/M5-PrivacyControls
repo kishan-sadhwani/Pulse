@@ -1,29 +1,33 @@
-# M5 - Privacy Controls
+# M5 - Sensitive Data Handling
 
 ## Status
 
-Planned
+Completed
 
 ## Goal
 
-Introduce privacy-aware logging to safely handle sensitive information.
+Introduce data classification to PulseLogger, allowing logging providers to make environment-aware decisions about exposing or redacting sensitive information without changing the logging API.
 
 ## Scope
 
-- Introduce public/private value representation.
-- Support automatic redaction.
-- Preserve existing logging APIs.
-- Keep privacy handling consistent across all log levels.
+- Introduce public and private data classification.
+- Preserve the original value internally.
+- Expose data classification to logging providers.
+- Demonstrate environment-aware rendering (e.g. visible during development, redacted in production).
+- Preserve all existing public logging APIs.
 
 ## Out of Scope
 
 - Logger configuration.
-- Multiple providers.
-- Remote logging.
+- Additional providers.
+- Encryption or secure storage.
+- Compliance or auditing features.
 
 ## Notes
 
-Privacy should be explicit and easy to adopt without making normal logging cumbersome.
+This milestone introduces **classification**, not redaction.
+
+The logger should classify data as public or private while leaving the final rendering decision to the active logging provider.
 
 Typical usage should evolve towards:
 
@@ -37,4 +41,15 @@ PulseLogger.info(
 )
 ```
 
-Update the status on top of this file to "Done" and record important architectural decisions once implementation completes.
+The same log may appear differently depending on the active provider or environment.
+
+For example:
+
+- Development Console → Show private values.
+- Production Console → Redact private values.
+- Remote Provider → Apply provider-specific privacy policy.
+
+## Architectural Decisions
+
+- Introduced `LogMetadataValue` enum which conforms to `ExpressibleByStringLiteral`. This allows `[String: LogMetadataValue]` to accept `["key": "value"]` for backward compatibility, automatically wrapping them as `.public`.
+- Redaction evaluation uses `rendered(redacted:)` on `LogMetadataValue`, leaving the responsibility to the logger (or provider) on whether to pass `true` or `false` based on the environment (e.g., `#if DEBUG`).
