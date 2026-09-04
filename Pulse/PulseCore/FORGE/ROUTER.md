@@ -1,9 +1,9 @@
 ---
 schema: forge/v1
 
-scope: package
+name: PulseCore
 
-entrypoint: false
+scope: package
 
 default_load:
   - ${workspaceFolder}/Pulse/PulseCore/FORGE/Vision.md

@@ -1,9 +1,9 @@
 ---
 schema: forge/v1
 
-scope: project
+name: Pulse
 
-entrypoint: true
+scope: project
 
 default_load:
   - ${workspaceFolder}/FORGE/Vision.md
