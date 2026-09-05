@@ -1,7 +1,7 @@
-# Application Architecture
+# Domain Architecture
 
 ## Purpose
-This document defines the normative application architecture for the Pulse host application. **Future AI agents must treat this as the authoritative architectural contract and reject changes that violate these rules unless this document is intentionally updated.**
+This document defines the normative domain architecture for the Pulse host application. **Future AI agents must treat this as the authoritative architectural contract and reject changes that violate these rules unless this document is intentionally updated.**
 
 Pulse is not the product; it is a showcase application demonstrating the capabilities, architecture, and usage of reusable Pulse packages (starting with PulseCore). The host application remains intentionally thin and disposable. All reusable capability and business logic must reside within packages whenever practical.
 
