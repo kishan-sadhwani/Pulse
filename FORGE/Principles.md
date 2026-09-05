@@ -10,7 +10,7 @@ Expose only what is needed. Public interfaces should be deliberate, stable, and 
 Structure components so dependencies flow inward toward core foundations. This prevents circular coupling, clarifies responsibility, and enables AI to locate relevant context with minimal traversal.
 
 ### Modular Isolation
-Encapsulate concerns in self‑contained units (packages, features, or services). Modularity limits the scope of change, improves reusability, and aligns with the hierarchical knowledge organization of MDAD.
+Encapsulate concerns in self‑contained units (packages, features, or services). Modularity limits the scope of change, improves reusability, and aligns with the hierarchical knowledge organization of FORGE.
 
 ### Documentation as Implementation
 Treat documentation as an integral part of the engineering effort. Capturing design rationales, architectural decisions, operational procedures, and lessons learned alongside the code ensures that knowledge is preserved, searchable, and usable by both humans and AI.
