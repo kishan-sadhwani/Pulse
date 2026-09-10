@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned
+Done
 
 ## Goal
 
@@ -26,4 +26,10 @@ Adding a new provider should require little more than implementing the provider 
 
 Application code should remain unchanged regardless of the active providers.
 
-Update the status on top of this file to "Done" and record important architectural decisions once implementation completes.
+## Architectural Decisions
+
+- Implemented `OSLogProvider` conforming to `LogProvider` and `Sendable`, integrating `PulseLogger` with Apple's Unified Logging System (`os.Logger`).
+- Added `LogLevel.osLogType` mapping internal `LogLevel` entries directly to `OSLogType` (`debug` -> `.debug`, `info` -> `.info`, `warning` -> `.default`, `error` -> `.error`, `fault` -> `.fault`).
+- Supported customizable `subsystem` identifiers in `OSLogProvider` with default fallback to `Bundle.main.bundleIdentifier ?? "Pulse"`.
+- Enhanced structured metadata serialization in providers with `.withoutEscapingSlashes` to ensure clean URL/path representation in diagnostic JSON logs.
+- Verified simultaneous dispatch and thread safety across multiple active providers (`ConsoleLogProvider`, `OSLogProvider`, and custom sinks).

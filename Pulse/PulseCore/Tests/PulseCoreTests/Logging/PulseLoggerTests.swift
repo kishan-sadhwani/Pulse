@@ -342,24 +342,235 @@ struct PulseLoggerTests {
         #expect(output.contains("\"freeMB\" : \"128\""))
     }
 
+    @Test("LogLevel osLogType mapping")
+    func logLevelOSLogTypeMapping() {
+        #expect(LogLevel.debug.osLogType == .debug)
+        #expect(LogLevel.info.osLogType == .info)
+        #expect(LogLevel.warning.osLogType == .default)
+        #expect(LogLevel.error.osLogType == .error)
+        #expect(LogLevel.fault.osLogType == .fault)
+    }
+
+    @Test("OSLogProvider initialization with default and custom subsystems")
+    func osLogProviderInitialization() {
+        let defaultProvider = OSLogProvider()
+        #expect(!defaultProvider.subsystem.isEmpty)
+
+        let customProvider = OSLogProvider(subsystem: "com.pulse.custom")
+        #expect(customProvider.subsystem == "com.pulse.custom")
+    }
+
+    @Test("OSLogProvider direct format test")
+    func osLogProviderFormat() {
+        let provider = OSLogProvider(subsystem: "com.pulse.test")
+        let config = PulseLoggerConfiguration(
+            showEmoji: true,
+            showCategory: true,
+            showTimestamp: false,
+            showCallerInfo: true
+        )
+
+        struct NetworkError: Error, CustomStringConvertible {
+            var description: String { "Connection timed out" }
+        }
+
+        let output = provider.format(
+            level: .error,
+            message: "Request failed",
+            category: .network,
+            metadata: ["endpoint": "/api/v1/sync"],
+            error: NetworkError(),
+            file: "NetworkClient.swift",
+            line: 120,
+            configuration: config
+        )
+
+        #expect(output.contains("[Network]"))
+        #expect(output.contains("[ERROR 🔴]"))
+        #expect(output.contains("Request failed"))
+        #expect(output.contains("[NetworkClient.swift:120]"))
+        #expect(output.contains("Error: Connection timed out"))
+        #expect(output.contains("\"endpoint\" : \"/api/v1/sync\""))
+    }
+
+    @Test("Multiple providers (Console, OSLog, and Mock) operating together")
+    func multipleProvidersOperatingTogether() {
+        let mock1 = MockLogProvider()
+        let mock2 = MockLogProvider()
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        let consoleProvider = ConsoleLogProvider()
+
+        PulseLogger.setProviders([consoleProvider, osLogProvider, mock1, mock2])
+        #expect(PulseLogger.providers.count == 4)
+
+        let logger = PulseLogger.category("Analytics")
+        logger.info("User completed onboarding", metadata: ["duration_seconds": "45"])
+
+        #expect(mock1.records.count == 1)
+        #expect(mock2.records.count == 1)
+
+        #expect(mock1.records[0].message == "User completed onboarding")
+        #expect(mock1.records[0].category == "Analytics")
+        #expect(mock2.records[0].message == "User completed onboarding")
+        #expect(mock2.records[0].category == "Analytics")
+    }
+
+    @Test("OSLogProvider handles all log levels without failure")
+    func osLogProviderAllLevels() {
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        PulseLogger.setProviders([osLogProvider])
+
+        let logger = PulseLogger.category(.database)
+        struct DBError: Error {}
+
+        logger.debug("Debug entry", metadata: ["step": "init"])
+        logger.info("Info entry", metadata: ["records": "10"])
+        logger.warning("Warning entry", metadata: ["latency_ms": "150"])
+        logger.error("Error entry", metadata: ["code": "500"], error: DBError())
+        logger.fault("Fault entry", metadata: ["fatal": "false"], error: DBError())
+    }
+
     @Test("Thread-safe concurrent configuration and provider access")
     func threadSafeConfigurationAndProviders() {
         let iterations = 1_000
         let mock = MockLogProvider()
-        PulseLogger.register(mock)
+        let osLog = OSLogProvider()
+        PulseLogger.setProviders([ConsoleLogProvider(), osLog, mock])
 
         DispatchQueue.concurrentPerform(iterations: iterations) { i in
-            if i % 3 == 0 {
+            if i % 4 == 0 {
                 PulseLogger.configure {
                     $0.minimumLevel = (i % 2 == 0) ? .debug : .error
                 }
-            } else if i % 3 == 1 {
+            } else if i % 4 == 1 {
                 _ = PulseLogger.providers.count
                 PulseLogger.shared.debug("Concurrent test message \(i)")
-            } else {
+            } else if i % 4 == 2 {
                 let tempMock = MockLogProvider()
                 PulseLogger.register(tempMock)
+            } else {
+                let logger = PulseLogger.category(.network)
+                logger.info("Multi-threaded message \(i)")
             }
         }
     }
+
+    // MARK: - M9 Polish & Stabilization Tests
+
+    @Test("Lazy autoclosure evaluation when disabled or filtered")
+    func lazyAutoclosureEvaluation() {
+        var evaluatedCount = 0
+        func produceMessage() -> String {
+            evaluatedCount += 1
+            return "Expensive computed message"
+        }
+
+        // 1. Below minimum level: should not evaluate
+        PulseLogger.configure {
+            $0.minimumLevel = .error
+            $0.isEnabled = true
+        }
+
+        let logger = PulseLogger.shared
+        logger.debug(produceMessage())
+        logger.info(produceMessage())
+        logger.warning(produceMessage())
+        #expect(evaluatedCount == 0)
+
+        // 2. Above or at minimum level: should evaluate
+        logger.error(produceMessage())
+        #expect(evaluatedCount == 1)
+
+        logger.fault(produceMessage())
+        #expect(evaluatedCount == 2)
+
+        // 3. Globally disabled: should not evaluate even on fault
+        PulseLogger.configure {
+            $0.isEnabled = false
+        }
+
+        logger.fault(produceMessage())
+        #expect(evaluatedCount == 2)
+    }
+
+    @Test("Timestamp formatting in Console and OSLog providers")
+    func timestampFormatting() {
+        let config = PulseLoggerConfiguration(
+            showEmoji: false,
+            showCategory: true,
+            showTimestamp: true,
+            showCallerInfo: false
+        )
+
+        let consoleProvider = ConsoleLogProvider()
+        let consoleOutput = consoleProvider.format(
+            level: .info,
+            message: "Timestamp test",
+            category: .lifecycle,
+            metadata: nil,
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        // Matches ISO8601 pattern [YYYY-MM-DDTHH:MM:SSZ] or similar
+        #expect(consoleOutput.contains("T") && consoleOutput.contains("Z] [Lifecycle] [INFO] Timestamp test"))
+
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        let osLogOutput = osLogProvider.format(
+            level: .info,
+            message: "Timestamp test",
+            category: .lifecycle,
+            metadata: nil,
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        #expect(osLogOutput.contains("T") && osLogOutput.contains("Z] [Lifecycle] [INFO] Timestamp test"))
+    }
+
+    @Test("LogCategory presets, hashing, and description")
+    func logCategoryProperties() {
+        #expect(LogCategory.default.name == "Default")
+        #expect(LogCategory.network.name == "Network")
+        #expect(LogCategory.ui.name == "UI")
+        #expect(LogCategory.database.name == "Database")
+        #expect(LogCategory.lifecycle.name == "Lifecycle")
+
+        #expect(LogCategory.network.description == "Network")
+        #expect(LogCategory(name: "Custom").description == "Custom")
+
+        let set: Set<LogCategory> = [.network, .ui, "Network"]
+        #expect(set.count == 2)
+        #expect(set.contains(.network))
+        #expect(set.contains(.ui))
+    }
+
+    @Test("LogMetadataValue description and debugDescription")
+    func logMetadataValueDescriptions() {
+        let publicVal = LogMetadataValue.public("pub_val")
+        #expect(publicVal.description == "pub_val")
+        #expect(publicVal.debugDescription == "LogMetadataValue.public(pub_val)")
+
+        let privateVal = LogMetadataValue.private("priv_val")
+        #expect(privateVal.description == "priv_val")
+        #expect(privateVal.debugDescription == "LogMetadataValue.private(priv_val)")
+    }
+
+    @Test("All LogLevel cases iterable and comparable")
+    func logLevelAllCases() {
+        let allCases = LogLevel.allCases
+        #expect(allCases == [.debug, .info, .warning, .error, .fault])
+
+        for i in 0..<(allCases.count - 1) {
+            #expect(allCases[i] < allCases[i + 1])
+            #expect(allCases[i] <= allCases[i + 1])
+            #expect(allCases[i + 1] > allCases[i])
+            #expect(allCases[i + 1] >= allCases[i])
+        }
+    }
 }
+
