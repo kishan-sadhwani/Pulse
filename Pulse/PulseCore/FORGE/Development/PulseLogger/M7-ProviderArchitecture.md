@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned
+Done
 
 ## Goal
 
@@ -27,4 +27,10 @@ This milestone is purely architectural. Existing application code should continu
 
 Typical usage should continue to look identical while internally routing logs through providers.
 
-Update the status on top of this file to "Done" and record important architectural decisions once implementation completes.
+## Architectural Decisions
+
+- Introduced `LogProvider` protocol (`Sendable`) defining a unified output contract (`log(level:message:category:metadata:error:file:line:)`).
+- Created `ConsoleLogProvider` conforming to `LogProvider`, encapsulating formatting logic (emojis, categories, timestamps, caller details, and privacy-filtered metadata JSON) and writing to console stdout.
+- Integrated thread-safe provider management in `PulseLogger` via an `os_unfair_lock`-backed store, defaulting to `[ConsoleLogProvider()]`.
+- Added provider management APIs: `PulseLogger.register(_:)`, `PulseLogger.setProviders(_:)`, `PulseLogger.unregisterAllProviders()`, `PulseLogger.resetProviders()`, and `PulseLogger.providers`.
+- Guaranteed test isolation and clean state resets through `PulseLogger.resetConfiguration()`.

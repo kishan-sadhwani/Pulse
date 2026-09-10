@@ -2,6 +2,57 @@ import Testing
 import Foundation
 @testable import PulseCore
 
+private struct LogRecord: Sendable, Equatable {
+    let level: LogLevel
+    let message: String
+    let category: LogCategory
+    let metadata: [String: LogMetadataValue]?
+    let hasError: Bool
+    let file: String?
+    let line: UInt?
+}
+
+private final class MockLogProvider: LogProvider, @unchecked Sendable {
+    private var lock = os_unfair_lock_s()
+    private var _records: [LogRecord] = []
+
+    var records: [LogRecord] {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _records
+    }
+
+    func log(
+        level: LogLevel,
+        message: String,
+        category: LogCategory,
+        metadata: [String: LogMetadataValue]?,
+        error: (any Swift.Error)?,
+        file: String?,
+        line: UInt?
+    ) {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        _records.append(
+            LogRecord(
+                level: level,
+                message: message,
+                category: category,
+                metadata: metadata,
+                hasError: error != nil,
+                file: file,
+                line: line
+            )
+        )
+    }
+
+    func clear() {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        _records.removeAll()
+    }
+}
+
 @Suite("PulseLogger Tests", .serialized)
 struct PulseLoggerTests {
     init() {
@@ -202,20 +253,113 @@ struct PulseLoggerTests {
         ])
     }
 
-    @Test("Thread-safe concurrent configuration access and mutation")
-    func threadSafeConfiguration() {
+    // MARK: - Provider Tests
+
+    @Test("Default provider setup")
+    func defaultProviderSetup() {
+        #expect(PulseLogger.providers.count == 1)
+        #expect(PulseLogger.providers.first is ConsoleLogProvider)
+    }
+
+    @Test("Custom provider registration and dispatch")
+    func customProviderRegistration() {
+        let mockProvider = MockLogProvider()
+        PulseLogger.register(mockProvider)
+
+        #expect(PulseLogger.providers.count == 2)
+
+        let logger = PulseLogger.category(.database)
+        struct SampleError: Error {}
+        logger.error("Database connection lost", metadata: ["retryCount": "3"], error: SampleError())
+
+        #expect(mockProvider.records.count == 1)
+        let record = mockProvider.records[0]
+        #expect(record.level == .error)
+        #expect(record.message == "Database connection lost")
+        #expect(record.category == .database)
+        #expect(record.metadata?["retryCount"] == "3")
+        #expect(record.hasError == true)
+    }
+
+    @Test("Multiple custom providers receive all events")
+    func multipleCustomProviders() {
+        let provider1 = MockLogProvider()
+        let provider2 = MockLogProvider()
+
+        PulseLogger.setProviders([provider1, provider2])
+        #expect(PulseLogger.providers.count == 2)
+
+        let logger = PulseLogger.category(.network)
+        logger.info("Fetched payload", metadata: ["bytes": "1024"])
+
+        #expect(provider1.records.count == 1)
+        #expect(provider2.records.count == 1)
+
+        #expect(provider1.records[0].message == "Fetched payload")
+        #expect(provider2.records[0].message == "Fetched payload")
+    }
+
+    @Test("Unregister all providers and reset providers")
+    func unregisterAndResetProviders() {
+        let mock = MockLogProvider()
+        PulseLogger.register(mock)
+
+        PulseLogger.unregisterAllProviders()
+        #expect(PulseLogger.providers.isEmpty)
+
+        PulseLogger.shared.info("Silent log")
+        #expect(mock.records.isEmpty)
+
+        PulseLogger.resetProviders()
+        #expect(PulseLogger.providers.count == 1)
+        #expect(PulseLogger.providers.first is ConsoleLogProvider)
+    }
+
+    @Test("ConsoleLogProvider direct format test")
+    func consoleLogProviderFormat() {
+        let provider = ConsoleLogProvider()
+        let config = PulseLoggerConfiguration(
+            showEmoji: true,
+            showCategory: true,
+            showTimestamp: false,
+            showCallerInfo: false
+        )
+
+        let output = provider.format(
+            level: .warning,
+            message: "Low disk space",
+            category: .default,
+            metadata: ["freeMB": "128"],
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        #expect(output.contains("[Default]"))
+        #expect(output.contains("[WARNING 🟡]"))
+        #expect(output.contains("Low disk space"))
+        #expect(output.contains("\"freeMB\" : \"128\""))
+    }
+
+    @Test("Thread-safe concurrent configuration and provider access")
+    func threadSafeConfigurationAndProviders() {
         let iterations = 1_000
+        let mock = MockLogProvider()
+        PulseLogger.register(mock)
+
         DispatchQueue.concurrentPerform(iterations: iterations) { i in
-            if i % 2 == 0 {
+            if i % 3 == 0 {
                 PulseLogger.configure {
-                    $0.minimumLevel = (i % 4 == 0) ? .debug : .error
+                    $0.minimumLevel = (i % 2 == 0) ? .debug : .error
                 }
-            } else {
-                _ = PulseLogger.configuration.minimumLevel
+            } else if i % 3 == 1 {
+                _ = PulseLogger.providers.count
                 PulseLogger.shared.debug("Concurrent test message \(i)")
+            } else {
+                let tempMock = MockLogProvider()
+                PulseLogger.register(tempMock)
             }
         }
     }
 }
-
-
