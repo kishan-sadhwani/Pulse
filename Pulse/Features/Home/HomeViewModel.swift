@@ -12,6 +12,9 @@ public final class HomeViewModel: ObservableObject {
     
     public init(dependencyContainer: DependencyContainer) {
         self.dependencyContainer = dependencyContainer
+        PulseLogger.configure { config in
+            config.minimumLevel = .error
+        }
         PulseLogger.shared.debug("REPORTING DEBUG")
         PulseLogger.shared.warning("REPORTING WARNING")
         PulseLogger.shared.fault("REPORTING FAULT")
@@ -26,6 +29,5 @@ public final class HomeViewModel: ObservableObject {
             "url": .private("https://www.google.com"),
             "method": .public("GET")
         ])
-        
     }
 }

@@ -1,16 +1,212 @@
-import XCTest
+import Testing
+import Foundation
 @testable import PulseCore
 
-final class PulseLoggerTests: XCTestCase {
-    func testLogLevelSymbols() {
-        XCTAssertEqual(LogLevel.debug.symbol, "⚪️")
-        XCTAssertEqual(LogLevel.info.symbol, "🔵")
-        XCTAssertEqual(LogLevel.warning.symbol, "🟡")
-        XCTAssertEqual(LogLevel.error.symbol, "🔴")
-        XCTAssertEqual(LogLevel.fault.symbol, "💥")
+private struct LogRecord: Sendable, Equatable {
+    let level: LogLevel
+    let message: String
+    let category: LogCategory
+    let metadata: [String: LogMetadataValue]?
+    let hasError: Bool
+    let file: String?
+    let line: UInt?
+}
+
+private final class MockLogProvider: LogProvider, @unchecked Sendable {
+    private var lock = os_unfair_lock_s()
+    private var _records: [LogRecord] = []
+
+    var records: [LogRecord] {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _records
     }
 
-    func testLoggerAPIDoesNotCrash() {
+    func log(
+        level: LogLevel,
+        message: String,
+        category: LogCategory,
+        metadata: [String: LogMetadataValue]?,
+        error: (any Swift.Error)?,
+        file: String?,
+        line: UInt?
+    ) {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        _records.append(
+            LogRecord(
+                level: level,
+                message: message,
+                category: category,
+                metadata: metadata,
+                hasError: error != nil,
+                file: file,
+                line: line
+            )
+        )
+    }
+
+    func clear() {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        _records.removeAll()
+    }
+}
+
+@Suite("PulseLogger Tests", .serialized)
+struct PulseLoggerTests {
+    init() {
+        PulseLogger.resetConfiguration()
+    }
+
+    @Test("Log level symbol mapping")
+    func logLevelSymbols() {
+        #expect(LogLevel.debug.symbol == "⚪️")
+        #expect(LogLevel.info.symbol == "🔵")
+        #expect(LogLevel.warning.symbol == "🟡")
+        #expect(LogLevel.error.symbol == "🔴")
+        #expect(LogLevel.fault.symbol == "💥")
+    }
+
+    @Test("Log level comparability and ordering")
+    func logLevelComparison() {
+        #expect(LogLevel.debug < LogLevel.info)
+        #expect(LogLevel.info < LogLevel.warning)
+        #expect(LogLevel.warning < LogLevel.error)
+        #expect(LogLevel.error < LogLevel.fault)
+        
+        #expect(LogLevel.fault > LogLevel.debug)
+        #expect(LogLevel.info >= LogLevel.info)
+    }
+
+    @Test("Default configuration values")
+    func defaultConfiguration() {
+        let config = PulseLogger.configuration
+        #expect(config.minimumLevel == .debug)
+        #expect(config.isEnabled == true)
+        #expect(config.showEmoji == false)
+        #expect(config.showCategory == true)
+        #expect(config.showTimestamp == false)
+        #expect(config.showCallerInfo == true)
+        #expect(config.isRedacted == nil)
+    }
+
+    @Test("Configure with mutation closure")
+    func configureBlock() {
+        PulseLogger.configure {
+            $0.minimumLevel = .warning
+            $0.isEnabled = false
+            $0.showEmoji = true
+        }
+        
+        let config = PulseLogger.configuration
+        #expect(config.minimumLevel == .warning)
+        #expect(config.isEnabled == false)
+        #expect(config.showEmoji == true)
+    }
+
+    @Test("Configure with explicit configuration instance")
+    func configureWithInstance() {
+        let customConfig = PulseLoggerConfiguration(
+            minimumLevel: .error,
+            isEnabled: true,
+            showEmoji: true,
+            showCategory: false,
+            showTimestamp: true,
+            showCallerInfo: false,
+            isRedacted: true
+        )
+        PulseLogger.configure(with: customConfig)
+        
+        #expect(PulseLogger.configuration == customConfig)
+    }
+
+    @Test("Reset configuration to defaults")
+    func resetConfiguration() {
+        PulseLogger.configure {
+            $0.minimumLevel = .fault
+            $0.isEnabled = false
+        }
+        #expect(PulseLogger.configuration.isEnabled == false)
+        
+        PulseLogger.resetConfiguration()
+        #expect(PulseLogger.configuration.isEnabled == true)
+        #expect(PulseLogger.configuration.minimumLevel == .debug)
+    }
+
+    @Test("Minimum level filtering")
+    func minimumLevelFiltering() {
+        PulseLogger.configure {
+            $0.minimumLevel = .warning
+        }
+        
+        let logger = PulseLogger.shared
+        // Below minimum level (.debug and .info) should return nil
+        #expect(logger.log(level: .debug, message: "Ignored debug") == nil)
+        #expect(logger.log(level: .info, message: "Ignored info") == nil)
+        
+        // At or above minimum level should produce output
+        #expect(logger.log(level: .warning, message: "Handled warning") != nil)
+        #expect(logger.log(level: .error, message: "Handled error") != nil)
+        #expect(logger.log(level: .fault, message: "Handled fault") != nil)
+    }
+
+    @Test("Logging disabled globally")
+    func loggingDisabled() {
+        PulseLogger.configure {
+            $0.isEnabled = false
+        }
+        
+        let logger = PulseLogger.shared
+        #expect(logger.log(level: .fault, message: "Ignored fault when disabled") == nil)
+        #expect(logger.log(level: .debug, message: "Ignored debug when disabled") == nil)
+    }
+
+    @Test("Formatting options: emoji, category, caller info")
+    func formattingOptions() {
+        PulseLogger.configure {
+            $0.showEmoji = true
+            $0.showCategory = false
+            $0.showCallerInfo = false
+        }
+        
+        let logger = PulseLogger.category(.network)
+        let output = logger.log(level: .info, message: "Test formatted message", file: "File.swift", line: 42)
+        
+        guard let output = output else {
+            #expect(Bool(false), "Output should not be nil")
+            return
+        }
+        
+        // Category should be hidden
+        #expect(!output.contains("[Network]"))
+        // Emoji should be included
+        #expect(output.contains("[INFO 🔵]"))
+        // Caller info should be hidden
+        #expect(!output.contains("[File.swift:42]"))
+        #expect(output.contains("Test formatted message"))
+    }
+
+    @Test("Explicit redaction configuration override")
+    func explicitRedactionConfiguration() {
+        PulseLogger.configure {
+            $0.isRedacted = true
+        }
+        
+        let logger = PulseLogger.shared
+        let output = logger.log(
+            level: .info,
+            message: "User action",
+            metadata: ["secret": .private("my-password")]
+        )
+        
+        #expect(output != nil)
+        #expect(output?.contains("***") == true)
+        #expect(output?.contains("my-password") == false)
+    }
+
+    @Test("Public logging APIs execution")
+    func loggerAPIDoesNotCrash() {
         let logger = PulseLogger.shared
         logger.debug("Test debug message")
         logger.info("Test info message")
@@ -18,43 +214,363 @@ final class PulseLoggerTests: XCTestCase {
         logger.error("Test error message")
         logger.fault("Test fault message")
     }
-    
-    func testSharedLogger() {
-        PulseLogger.shared.info("Shared logger test")
-    }
 
-    func testCategorizedLogger() {
+    @Test("Categorized loggers")
+    func categorizedLogger() {
         let networkLogger = PulseLogger.category(.network)
-        XCTAssertEqual(networkLogger.category.name, "Network")
+        #expect(networkLogger.category.name == "Network")
         networkLogger.info("Network request completed")
         
         let uiLogger = PulseLogger.category(.ui)
-        XCTAssertEqual(uiLogger.category.name, "UI")
+        #expect(uiLogger.category.name == "UI")
         uiLogger.debug("View appeared")
         
         let customLogger = PulseLogger.category("Custom")
-        XCTAssertEqual(customLogger.category.name, "Custom")
+        #expect(customLogger.category.name == "Custom")
         customLogger.warning("Custom category test")
     }
 
-    func testPrivacyControls() {
+    @Test("Privacy controls data classification")
+    func privacyControls() {
         let publicVal: LogMetadataValue = "test"
-        XCTAssertEqual(publicVal, .public("test"))
-        XCTAssertEqual(publicVal.value, "test")
-        XCTAssertEqual(publicVal.rendered(redacted: false), "test")
-        XCTAssertEqual(publicVal.rendered(redacted: true), "test")
+        #expect(publicVal == .public("test"))
+        #expect(publicVal.value == "test")
+        #expect(publicVal.rendered(redacted: false) == "test")
+        #expect(publicVal.rendered(redacted: true) == "test")
         
         let privateVal = LogMetadataValue.private("secret")
-        XCTAssertEqual(privateVal.value, "secret")
-        XCTAssertEqual(privateVal.rendered(redacted: false), "secret")
-        XCTAssertEqual(privateVal.rendered(redacted: true), "***")
+        #expect(privateVal.value == "secret")
+        #expect(privateVal.rendered(redacted: false) == "secret")
+        #expect(privateVal.rendered(redacted: true) == "***")
     }
-    
-    func testLoggerWithMetadata() {
+
+    @Test("Logging with metadata dictionary")
+    func loggerWithMetadata() {
         let logger = PulseLogger.shared
         logger.info("Test metadata", metadata: [
-            "public_key": "public_value", // uses ExpressibleByStringLiteral
+            "public_key": "public_value",
             "private_key": .private("secret_value")
-        ] as [String: LogMetadataValue])
+        ])
+    }
+
+    // MARK: - Provider Tests
+
+    @Test("Default provider setup")
+    func defaultProviderSetup() {
+        #expect(PulseLogger.providers.count == 1)
+        #expect(PulseLogger.providers.first is ConsoleLogProvider)
+    }
+
+    @Test("Custom provider registration and dispatch")
+    func customProviderRegistration() {
+        let mockProvider = MockLogProvider()
+        PulseLogger.register(mockProvider)
+
+        #expect(PulseLogger.providers.count == 2)
+
+        let logger = PulseLogger.category(.database)
+        struct SampleError: Error {}
+        logger.error("Database connection lost", metadata: ["retryCount": "3"], error: SampleError())
+
+        #expect(mockProvider.records.count == 1)
+        let record = mockProvider.records[0]
+        #expect(record.level == .error)
+        #expect(record.message == "Database connection lost")
+        #expect(record.category == .database)
+        #expect(record.metadata?["retryCount"] == "3")
+        #expect(record.hasError == true)
+    }
+
+    @Test("Multiple custom providers receive all events")
+    func multipleCustomProviders() {
+        let provider1 = MockLogProvider()
+        let provider2 = MockLogProvider()
+
+        PulseLogger.setProviders([provider1, provider2])
+        #expect(PulseLogger.providers.count == 2)
+
+        let logger = PulseLogger.category(.network)
+        logger.info("Fetched payload", metadata: ["bytes": "1024"])
+
+        #expect(provider1.records.count == 1)
+        #expect(provider2.records.count == 1)
+
+        #expect(provider1.records[0].message == "Fetched payload")
+        #expect(provider2.records[0].message == "Fetched payload")
+    }
+
+    @Test("Unregister all providers and reset providers")
+    func unregisterAndResetProviders() {
+        let mock = MockLogProvider()
+        PulseLogger.register(mock)
+
+        PulseLogger.unregisterAllProviders()
+        #expect(PulseLogger.providers.isEmpty)
+
+        PulseLogger.shared.info("Silent log")
+        #expect(mock.records.isEmpty)
+
+        PulseLogger.resetProviders()
+        #expect(PulseLogger.providers.count == 1)
+        #expect(PulseLogger.providers.first is ConsoleLogProvider)
+    }
+
+    @Test("ConsoleLogProvider direct format test")
+    func consoleLogProviderFormat() {
+        let provider = ConsoleLogProvider()
+        let config = PulseLoggerConfiguration(
+            showEmoji: true,
+            showCategory: true,
+            showTimestamp: false,
+            showCallerInfo: false
+        )
+
+        let output = provider.format(
+            level: .warning,
+            message: "Low disk space",
+            category: .default,
+            metadata: ["freeMB": "128"],
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        #expect(output.contains("[Default]"))
+        #expect(output.contains("[WARNING 🟡]"))
+        #expect(output.contains("Low disk space"))
+        #expect(output.contains("\"freeMB\" : \"128\""))
+    }
+
+    @Test("LogLevel osLogType mapping")
+    func logLevelOSLogTypeMapping() {
+        #expect(LogLevel.debug.osLogType == .debug)
+        #expect(LogLevel.info.osLogType == .info)
+        #expect(LogLevel.warning.osLogType == .default)
+        #expect(LogLevel.error.osLogType == .error)
+        #expect(LogLevel.fault.osLogType == .fault)
+    }
+
+    @Test("OSLogProvider initialization with default and custom subsystems")
+    func osLogProviderInitialization() {
+        let defaultProvider = OSLogProvider()
+        #expect(!defaultProvider.subsystem.isEmpty)
+
+        let customProvider = OSLogProvider(subsystem: "com.pulse.custom")
+        #expect(customProvider.subsystem == "com.pulse.custom")
+    }
+
+    @Test("OSLogProvider direct format test")
+    func osLogProviderFormat() {
+        let provider = OSLogProvider(subsystem: "com.pulse.test")
+        let config = PulseLoggerConfiguration(
+            showEmoji: true,
+            showCategory: true,
+            showTimestamp: false,
+            showCallerInfo: true
+        )
+
+        struct NetworkError: Error, CustomStringConvertible {
+            var description: String { "Connection timed out" }
+        }
+
+        let output = provider.format(
+            level: .error,
+            message: "Request failed",
+            category: .network,
+            metadata: ["endpoint": "/api/v1/sync"],
+            error: NetworkError(),
+            file: "NetworkClient.swift",
+            line: 120,
+            configuration: config
+        )
+
+        #expect(output.contains("[Network]"))
+        #expect(output.contains("[ERROR 🔴]"))
+        #expect(output.contains("Request failed"))
+        #expect(output.contains("[NetworkClient.swift:120]"))
+        #expect(output.contains("Error: Connection timed out"))
+        #expect(output.contains("\"endpoint\" : \"/api/v1/sync\""))
+    }
+
+    @Test("Multiple providers (Console, OSLog, and Mock) operating together")
+    func multipleProvidersOperatingTogether() {
+        let mock1 = MockLogProvider()
+        let mock2 = MockLogProvider()
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        let consoleProvider = ConsoleLogProvider()
+
+        PulseLogger.setProviders([consoleProvider, osLogProvider, mock1, mock2])
+        #expect(PulseLogger.providers.count == 4)
+
+        let logger = PulseLogger.category("Analytics")
+        logger.info("User completed onboarding", metadata: ["duration_seconds": "45"])
+
+        #expect(mock1.records.count == 1)
+        #expect(mock2.records.count == 1)
+
+        #expect(mock1.records[0].message == "User completed onboarding")
+        #expect(mock1.records[0].category == "Analytics")
+        #expect(mock2.records[0].message == "User completed onboarding")
+        #expect(mock2.records[0].category == "Analytics")
+    }
+
+    @Test("OSLogProvider handles all log levels without failure")
+    func osLogProviderAllLevels() {
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        PulseLogger.setProviders([osLogProvider])
+
+        let logger = PulseLogger.category(.database)
+        struct DBError: Error {}
+
+        logger.debug("Debug entry", metadata: ["step": "init"])
+        logger.info("Info entry", metadata: ["records": "10"])
+        logger.warning("Warning entry", metadata: ["latency_ms": "150"])
+        logger.error("Error entry", metadata: ["code": "500"], error: DBError())
+        logger.fault("Fault entry", metadata: ["fatal": "false"], error: DBError())
+    }
+
+    @Test("Thread-safe concurrent configuration and provider access")
+    func threadSafeConfigurationAndProviders() {
+        let iterations = 1_000
+        let mock = MockLogProvider()
+        let osLog = OSLogProvider()
+        PulseLogger.setProviders([ConsoleLogProvider(), osLog, mock])
+
+        DispatchQueue.concurrentPerform(iterations: iterations) { i in
+            if i % 4 == 0 {
+                PulseLogger.configure {
+                    $0.minimumLevel = (i % 2 == 0) ? .debug : .error
+                }
+            } else if i % 4 == 1 {
+                _ = PulseLogger.providers.count
+                PulseLogger.shared.debug("Concurrent test message \(i)")
+            } else if i % 4 == 2 {
+                let tempMock = MockLogProvider()
+                PulseLogger.register(tempMock)
+            } else {
+                let logger = PulseLogger.category(.network)
+                logger.info("Multi-threaded message \(i)")
+            }
+        }
+    }
+
+    // MARK: - M9 Polish & Stabilization Tests
+
+    @Test("Lazy autoclosure evaluation when disabled or filtered")
+    func lazyAutoclosureEvaluation() {
+        var evaluatedCount = 0
+        func produceMessage() -> String {
+            evaluatedCount += 1
+            return "Expensive computed message"
+        }
+
+        // 1. Below minimum level: should not evaluate
+        PulseLogger.configure {
+            $0.minimumLevel = .error
+            $0.isEnabled = true
+        }
+
+        let logger = PulseLogger.shared
+        logger.debug(produceMessage())
+        logger.info(produceMessage())
+        logger.warning(produceMessage())
+        #expect(evaluatedCount == 0)
+
+        // 2. Above or at minimum level: should evaluate
+        logger.error(produceMessage())
+        #expect(evaluatedCount == 1)
+
+        logger.fault(produceMessage())
+        #expect(evaluatedCount == 2)
+
+        // 3. Globally disabled: should not evaluate even on fault
+        PulseLogger.configure {
+            $0.isEnabled = false
+        }
+
+        logger.fault(produceMessage())
+        #expect(evaluatedCount == 2)
+    }
+
+    @Test("Timestamp formatting in Console and OSLog providers")
+    func timestampFormatting() {
+        let config = PulseLoggerConfiguration(
+            showEmoji: false,
+            showCategory: true,
+            showTimestamp: true,
+            showCallerInfo: false
+        )
+
+        let consoleProvider = ConsoleLogProvider()
+        let consoleOutput = consoleProvider.format(
+            level: .info,
+            message: "Timestamp test",
+            category: .lifecycle,
+            metadata: nil,
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        // Matches ISO8601 pattern [YYYY-MM-DDTHH:MM:SSZ] or similar
+        #expect(consoleOutput.contains("T") && consoleOutput.contains("Z] [Lifecycle] [INFO] Timestamp test"))
+
+        let osLogProvider = OSLogProvider(subsystem: "com.pulse.test")
+        let osLogOutput = osLogProvider.format(
+            level: .info,
+            message: "Timestamp test",
+            category: .lifecycle,
+            metadata: nil,
+            error: nil,
+            file: nil,
+            line: nil,
+            configuration: config
+        )
+
+        #expect(osLogOutput.contains("T") && osLogOutput.contains("Z] [Lifecycle] [INFO] Timestamp test"))
+    }
+
+    @Test("LogCategory presets, hashing, and description")
+    func logCategoryProperties() {
+        #expect(LogCategory.default.name == "Default")
+        #expect(LogCategory.network.name == "Network")
+        #expect(LogCategory.ui.name == "UI")
+        #expect(LogCategory.database.name == "Database")
+        #expect(LogCategory.lifecycle.name == "Lifecycle")
+
+        #expect(LogCategory.network.description == "Network")
+        #expect(LogCategory(name: "Custom").description == "Custom")
+
+        let set: Set<LogCategory> = [.network, .ui, "Network"]
+        #expect(set.count == 2)
+        #expect(set.contains(.network))
+        #expect(set.contains(.ui))
+    }
+
+    @Test("LogMetadataValue description and debugDescription")
+    func logMetadataValueDescriptions() {
+        let publicVal = LogMetadataValue.public("pub_val")
+        #expect(publicVal.description == "pub_val")
+        #expect(publicVal.debugDescription == "LogMetadataValue.public(pub_val)")
+
+        let privateVal = LogMetadataValue.private("priv_val")
+        #expect(privateVal.description == "priv_val")
+        #expect(privateVal.debugDescription == "LogMetadataValue.private(priv_val)")
+    }
+
+    @Test("All LogLevel cases iterable and comparable")
+    func logLevelAllCases() {
+        let allCases = LogLevel.allCases
+        #expect(allCases == [.debug, .info, .warning, .error, .fault])
+
+        for i in 0..<(allCases.count - 1) {
+            #expect(allCases[i] < allCases[i + 1])
+            #expect(allCases[i] <= allCases[i + 1])
+            #expect(allCases[i + 1] > allCases[i])
+            #expect(allCases[i + 1] >= allCases[i])
+        }
     }
 }
+
